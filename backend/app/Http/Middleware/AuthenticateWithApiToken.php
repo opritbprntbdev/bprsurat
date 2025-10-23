@@ -4,8 +4,8 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthenticateWithApiToken
 {
@@ -21,7 +21,13 @@ class AuthenticateWithApiToken
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
-        $user = User::where('api_token', $token)->first();
+        // Try to resolve token using Sanctum's PersonalAccessToken
+        $tokenModel = PersonalAccessToken::findToken($token);
+        if (!$tokenModel) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $user = $tokenModel->tokenable; // the user model associated with this token
         if (!$user) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }

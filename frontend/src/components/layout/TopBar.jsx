@@ -1,4 +1,4 @@
-import { useAuth } from '../../hooks/useAuth.js'
+import { useAuth } from '../../hooks/useAuth.jsx'
 import { LogOut, Users, FileText } from 'lucide-react'
 import { Link } from 'react-router-dom'
 

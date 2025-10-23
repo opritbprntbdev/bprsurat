@@ -10,7 +10,6 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
-  // load dari localStorage saat mount
   useEffect(() => {
     const savedToken = localStorage.getItem('token')
     const savedUser = localStorage.getItem('user')
@@ -22,20 +21,26 @@ export function AuthProvider({ children }) {
   }, [])
 
   const login = async (email, password) => {
-    const data = await AuthAPI.login(email, password)
+  const data = await AuthAPI.login(email, password)
     if (!data?.token) throw new Error('Tidak dapat login')
+
+    // Important: persist token first (localStorage) so interceptors/readers can access it immediately
+  localStorage.setItem('token', data.token)
+  localStorage.setItem('user', JSON.stringify(data.user))
+
+    // then update state
     setToken(data.token)
     setUser(data.user)
-    localStorage.setItem('token', data.token)
-    localStorage.setItem('user', JSON.stringify(data.user))
-    navigate('/letters')
+
+    // Do navigation from caller (LoginPage) to avoid double navigation race
+    // If you prefer, you can keep this navigate here but ensure LoginPage doesn't navigate again.
   }
 
   const logout = async () => {
     try {
       await AuthAPI.logout()
     } catch (e) {
-      // ignore server logout errors
+      // ignore
     }
     setToken(null)
     setUser(null)

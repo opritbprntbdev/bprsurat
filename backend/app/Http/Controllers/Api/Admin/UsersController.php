@@ -48,9 +48,12 @@ class UsersController extends Controller
             if (Schema::hasColumn('users', 'director_id'))
                 $columns[] = 'director_id';
 
+            $perPage = (int) $request->query('per_page', 5);
+            $page = (int) $request->query('page', 1);
+
             $users = $query->select($columns)
                 ->orderBy('created_at', 'desc')
-                ->paginate(15);
+                ->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json($users);
         } catch (\Throwable $e) {
@@ -103,7 +106,8 @@ class UsersController extends Controller
                 'status' => $user->status,
                 'must_change_password' => Schema::hasColumn('users', 'must_change_password') ? (bool) $user->must_change_password : null,
             ],
-            'temporary_password' => $data['password'] ? null : $tempPassword
+            // jika password dikirim, tidak perlu tunjukkan temporary password
+            'temporary_password' => ($data['password'] ?? null) ? null : $tempPassword
         ], 201);
     }
 

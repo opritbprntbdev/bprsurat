@@ -6,9 +6,12 @@ export const api = axios.create({
   headers: { 'Accept': 'application/json' }
 })
 
+// add debug log to request interceptor to see Authorization header at request time
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
   if (token) config.headers['Authorization'] = `Bearer ${token}`
+
+  // debug logging removed for normal operation
   return config
 })
 

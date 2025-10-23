@@ -4,11 +4,13 @@ import LettersListPage from "./pages/letters/LettersListPage.jsx";
 import LetterFormPage from "./pages/letters/LetterFormPage.jsx";
 import UsersPage from "./pages/admin/UsersPage.jsx";
 import PageShell from "./components/layout/PageShell.jsx";
-import { useAuth } from "./hooks/useAuth.js";
+import { useAuth } from "./hooks/useAuth.jsx";
 import LogsPage from './pages/admin/LogsPage.jsx'
 
 function RequireAuth({ children }) {
-  const { token } = useAuth();
+  const { token, loading } = useAuth();
+  // while auth provider is initializing, avoid redirecting
+  if (loading) return null
   if (!token) return <Navigate to="/login" replace />;
   return children;
 }

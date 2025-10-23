@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import UsersAPI from '../../services/users'
-import { useAuth } from '../../hooks/useAuth'
+import { useAuth } from '../../hooks/useAuth.jsx'
 import { Pencil, X, Trash2 } from 'lucide-react'
 import { useToast } from '../../components/ui/ToastProvider.jsx'
 import AlertModal from '../../components/ui/AlertModal.jsx'
@@ -23,6 +23,10 @@ export default function UsersPage() {
   const qc = useQueryClient()
   const { user } = useAuth()
   const { toast } = useToast()
+  const [page, setPage] = useState(1)
+  const [perPage] = useState(5)
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
 
   // Alert info/sukses/gagal
   const [alert, setAlert] = useState({ open: false, title: '', message: '', variant: 'success' })
@@ -50,13 +54,24 @@ export default function UsersPage() {
 
   // TAMBAH: tangkap `error` dan munculkan toast ketika gagal
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ['admin-users'],
-    queryFn: () => UsersAPI.list(),
+    queryKey: ['admin-users', page, perPage, debouncedSearch],
+    queryFn: () => UsersAPI.list({ page, per_page: perPage, q: debouncedSearch }),
     onError: (e) => {
       const msg = getErrMsg(e)
       toast({ variant: 'error', title: 'Gagal memuat daftar user', description: msg })
     }
   })
+
+  // debounce search input
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300)
+    return () => clearTimeout(t)
+  }, [search])
+
+  // when debounced search changes, reset to page 1
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch])
 
   const createMut = useMutation({
     mutationFn: (payload) => UsersAPI.create(payload),
@@ -213,11 +228,14 @@ export default function UsersPage() {
 
       {/* List user */}
       <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between gap-3">
           <div className="font-semibold text-slate-800">Daftar User</div>
-          <button className="text-sm text-slate-600 underline" onClick={()=>refetch()} disabled={isFetching}>
-            {isFetching ? 'Memuat...' : 'Refresh'}
-          </button>
+          <div className="flex items-center gap-2">
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama atau email..." className="rounded-md border border-slate-300 px-3 py-1 text-sm outline-none" />
+            <button className="text-sm text-slate-600 underline" onClick={()=>refetch()} disabled={isFetching}>
+              {isFetching ? 'Memuat...' : 'Refresh'}
+            </button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -227,7 +245,7 @@ export default function UsersPage() {
                 <th className="text-left px-4 py-2">Nama</th>
                 <th className="text-left px-4 py-2">Email</th>
                 <th className="text-left px-4 py-2">Role</th>
-                <th className="text-left px-4 py-2">Branch</th>
+                <th className="text-left px-4 py-2">Kode Cabang</th>
                 <th className="text-left px-4 py-2">Divisi</th>
                 <th className="text-left px-4 py-2">Direktorat</th>
                 <th className="text-left px-4 py-2">Status</th>
@@ -246,11 +264,14 @@ export default function UsersPage() {
                 </tr>
               )}
 
-              {data?.data?.map(u => {
+              {data?.data?.map((u, idx) => {
                 const disableDelete = user?.id === u.id || u.role_id === 1 // jangan hapus diri sendiri atau Admin
+                const currentPage = data?.current_page ?? page
+                const currentPerPage = data?.per_page ?? perPage
+                const serial = (currentPage - 1) * currentPerPage + (idx + 1)
                 return (
                   <tr key={u.id} className="border-t border-slate-100">
-                    <td className="px-4 py-2">{u.id}</td>
+                    <td className="px-4 py-2">{serial}</td>
                     <td className="px-4 py-2">{u.name}</td>
                     <td className="px-4 py-2">{u.email}</td>
                     <td className="px-4 py-2">{u.role_id}</td>
@@ -279,6 +300,15 @@ export default function UsersPage() {
               {!isLoading && !isError && data?.data?.length === 0 && <tr><td className="px-4 py-3 text-slate-500" colSpan={9}>Belum ada user</td></tr>}
             </tbody>
           </table>
+        </div>
+        {/* Pagination controls */}
+        <div className="px-4 py-3 border-t border-slate-200 flex items-center justify-between">
+          <div className="text-sm text-slate-600">Tampilkan {data?.from ?? '-'} sampai {data?.to ?? '-'} dari {data?.total ?? '-'}</div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={isFetching || (data?.current_page ?? page) <= 1} className="rounded-md px-3 py-1 text-sm bg-slate-100 hover:bg-slate-200 disabled:opacity-50">Prev</button>
+            <div className="text-sm text-slate-600">Halaman {data?.current_page ?? page} / {data?.last_page ?? 1}</div>
+            <button onClick={() => setPage(p => Math.min((data?.last_page ?? 1), p + 1))} disabled={isFetching || (data?.current_page ?? page) >= (data?.last_page ?? 1)} className="rounded-md px-3 py-1 text-sm bg-slate-100 hover:bg-slate-200 disabled:opacity-50">Next</button>
+          </div>
         </div>
       </div>
 
